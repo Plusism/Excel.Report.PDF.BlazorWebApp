@@ -8,6 +8,8 @@ builder.Services.AddRazorComponents()
 
 var app = builder.Build();
 
+app.UsePdfSharp();
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
