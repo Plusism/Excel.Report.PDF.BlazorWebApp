@@ -1,6 +1,6 @@
 # Excel.Report.PDF.BlazorWebApp
 
-NuGetパッケージ「[Excel.Report.PDF](https://www.nuget.org/packages/Excel.Report.PDF)」をBlazorWebApp(.NET8)で実装してみたサンプルで、InteractiveServerモードで簡単にExcelからPDFの生成とダウンロードが可能。
+NuGetパッケージ「[Excel.Report.PDF](https://www.nuget.org/packages/Excel.Report.PDF)」をBlazorWebApp(.NET8)で実装してみたサンプルで、InteractiveServerモードで簡単にExcelからPDFの生成とダウンロードが可能。サンプルにはサーバー上のExportsディレクトリーにエクスポートする処理も記載しており、AzureStorageなどに格納すれば永続化も可能かな。
 
 ![イメージ画像-01](./img/demo-01.png "イメージ画像-01")
 ![イメージ画像-02](./img/demo-02.png "イメージ画像-02")
