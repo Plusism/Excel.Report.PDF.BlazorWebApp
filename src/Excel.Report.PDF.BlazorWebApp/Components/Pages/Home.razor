@@ -1,7 +1,233 @@
 ﻿@page "/"
+@rendermode InteractiveServer
+@using ClosedXML.Excel
+@using Excel.Report.PDF.BlazorWebApp.Models
+@inject IWebHostEnvironment Environment
+@inject IJSRuntime JS
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+@if (alertMessage is not null)
+{
+	<div class="alert alert-success alert-dismissible" role="alert">
+		@(alertMessage)
+		<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" @onclick="AlertClose"></button>
+	</div>
+}
+<p class="mt-5">
+	<button class="btn btn-primary" @onclick="OverWriterDownload">Quotation ダウンロード</button>
+	<button class="btn btn-warning" @onclick="OverWriterExport">Quotation エクスポート</button>
+</p>
+<hr />
+<p>
+	<button class="btn btn-primary" @onclick=@(() => PlainDownload("Test1"))>Test1 ダウンロード</button>
+	<button class="btn btn-warning" @onclick=@(() => PlainExport("Test1"))>Test1 エクスポート</button>
+</p>
+<hr />
+<p>
+	<button class="btn btn-primary" @onclick=@(() => PlainDownload("Test2"))>Test2 ダウンロード</button>
+	<button class="btn btn-warning" @onclick=@(() => PlainExport("Test2"))>Test2 エクスポート</button>
+</p>
+<hr />
+<p>
+	<button class="btn btn-primary" @onclick=@(() => PlainDownload("Test3"))>Test3 ダウンロード</button>
+	<button class="btn btn-warning" @onclick=@(() => PlainExport("Test3"))>Test3 エクスポート</button>
+</p>
 
-Welcome to your new app.
+<script>
+	// ストリームからファイルをダウンロードするJSスクリプト
+	window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+		const arrayBuffer = await contentStreamReference.arrayBuffer();
+		const blob = new Blob([arrayBuffer]);
+		const url = URL.createObjectURL(blob);
+		const anchorElement = document.createElement('a');
+		anchorElement.href = url;
+		anchorElement.download = fileName ?? '';
+		anchorElement.click();
+		anchorElement.remove();
+		URL.revokeObjectURL(url);
+	}
+</script>
+
+@code {
+	private string? alertMessage { get; set; }
+
+	private void AlertClose()
+	{
+		alertMessage = null;
+	}
+
+	/// <summary>
+	/// サンプルデータ(Quotation)の生成
+	/// </summary>
+	/// <returns></returns>
+	private Quotation GetSampleData()
+	{
+		var data = new Quotation
+			{
+				Title = "パ－ティの食材",
+				Client = "サンプル株式会社",
+				PersonInCharge = "山田太郎"
+			};
+
+		data.Details.Add(new()
+			{
+				Title = "鯛",
+				Detail = "新鮮",
+				Price = 10000,
+				Discount = 0,
+			});
+
+		data.Details.Add(new()
+			{
+				Title = "鰤",
+				Detail = "新鮮",
+				Price = 20000,
+				Discount = 0,
+			});
+
+		data.Details.Add(new()
+			{
+				Title = "ハマチ",
+				Detail = "ご奉仕品",
+				Price = 30000,
+				Discount = 2000,
+			});
+
+		data.Details.Add(new()
+			{
+				Title = "蛸",
+				Detail = "ご奉仕品",
+				Price = 40000,
+				Discount = 1000,
+			});
+
+		return data;
+	}
+
+	/// <summary>
+	/// Excelをベースに上書きしてPDFに変換してダウンロードする
+	/// </summary>
+	/// <returns></returns>
+	private async Task OverWriterDownload()
+	{
+		// 埋め込むデータを準備する
+		var data = GetSampleData();
+
+		// テンプレートとなるExcelファイルのパス
+		var excelPath = Path.Combine(Environment.ContentRootPath, "Resources", "Quotation.xlsx");
+
+		using var memoryStream = new MemoryStream();
+
+		using (var excelStream = new FileStream(excelPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+		{
+			// メモリーにコピーしてファイルを閉じる
+			excelStream.CopyTo(memoryStream);
+		}
+
+		// メモリーからbook1(sheet1)を生成してデータを埋め込む
+		using var book1 = new XLWorkbook(memoryStream);
+		await book1.Worksheet(1).OverWrite(new ObjectExcelSymbolConverter(data));
+		book1.Save();
+
+		// book1のデータをPDFにコンバ－トする
+		using var pdfStream = ExcelConverter.ConvertToPdf(memoryStream, 1);
+
+		// ダウンロードするPDFファイル名
+		var fileName = $"Quotation-{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
+
+		// JSを呼び出しPDFファイルをダウンロードさせる
+		using var streamRef = new DotNetStreamReference(stream: pdfStream);
+		await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+
+		// アラートの表示
+		alertMessage = $"{fileName}をダウンロードしました。";
+	}
+
+	/// <summary>
+	/// Excelをベースに上書きしてPDFに変換してエクスポートする
+	/// </summary>
+	/// <returns></returns>
+	private async Task OverWriterExport()
+	{
+		// 埋め込むデータを準備する
+		var data = GetSampleData();
+
+		// テンプレートとなるExcelファイルのパス
+		var excelPath = Path.Combine(Environment.ContentRootPath, "Resources", "Quotation.xlsx");
+
+		using var memoryStream = new MemoryStream();
+
+		using (var excelStream = new FileStream(excelPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+		{
+			// メモリーにコピーしてファイルを閉じる
+			excelStream.CopyTo(memoryStream);
+		}
+
+		// メモリーからbook1(sheet1)を生成してデータを埋め込む
+		using var book1 = new XLWorkbook(memoryStream);
+		await book1.Worksheet(1).OverWrite(new ObjectExcelSymbolConverter(data));
+		book1.Save();
+
+		// book1のデータをPDFにコンバ－トする
+		using var pdfStream = ExcelConverter.ConvertToPdf(memoryStream, 1);
+
+		// エクスポートするPDFファイル名
+		var fileName = $"Quotation-{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
+
+		// エクスポートするPDFファイルのパス ※サーバー上のExportsディレクトリー内
+		var pdfPath = Path.Combine(Environment.ContentRootPath, "Exports", fileName);
+
+		// ストリームをファイルに書き込む ※保存先をAzureStorage(Blob)などにすれば永続化が可能
+		File.WriteAllBytes(pdfPath, pdfStream.ToArray());
+
+		// アラートの表示
+		alertMessage = $"{fileName}をエクスポートしました。";
+	}
+
+	/// <summary>
+	/// ExcelをそのままPDFに変換してダウンロードする
+	/// </summary>
+	/// <param name="file">Excelファイル名</param>
+	private async Task PlainDownload(string file)
+	{
+		var workbookPath = Path.Combine(Environment.ContentRootPath, "Resources", $"{file}.xlsx");
+		var result = Path.Combine(Environment.ContentRootPath, "Exports", $"{file}.pdf");
+		using var outStream = ExcelConverter.ConvertToPdf(workbookPath, 1);
+
+		// ダウンロードするPDFファイル名
+		var fileName = $"{file}-{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
+
+		// JSを呼び出しPDFファイルをダウンロードさせる
+		using var streamRef = new DotNetStreamReference(outStream);
+		await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+
+		// アラートの表示
+		alertMessage = $"{fileName}をダウンロードしました。";
+	}
+
+	/// <summary>
+	/// ExcelをそのままPDFに変換してエクスポートする
+	/// </summary>
+	/// <param name="file">Excelファイル名</param>
+	private void PlainExport(string file)
+	{
+		// テンプレートとなるExcelファイルのパス
+		var excelPath = Path.Combine(Environment.ContentRootPath, "Resources", $"{file}.xlsx");
+
+		// ExcelのデータをPDFにコンバ－トする
+		using var pdfStream = ExcelConverter.ConvertToPdf(excelPath, 1);
+
+		// エクスポートするPDFファイル名
+		var fileName = $"{file}-{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
+
+		// エクスポートするPDFファイルのパス ※サーバー上のExportsディレクトリー内
+		var pdfPath = Path.Combine(Environment.ContentRootPath, "Exports", fileName);
+
+		// ストリームをファイルに書き込む ※保存先をAzureStorage(Blob)などにすれば永続化が可能
+		File.WriteAllBytes(pdfPath, pdfStream.ToArray());
+
+		// アラートの表示
+		alertMessage = $"{fileName}をエクスポートしました。";
+	}
+}
